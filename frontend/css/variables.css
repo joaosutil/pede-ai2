@@ -1,0 +1,58 @@
+/* frontend/css/variables.css */
+:root {
+    /* 2.2 PALETA DE CORES (Aprofundada) */
+    --color-primary: #0F5132;       /* Verde profundo moderno */
+    --color-primary-hover: #0a3622;
+    
+    --color-action: #198754;        /* Ação / Confirmação */
+    --color-danger: #DC3545;        /* Vermelho profundo (Preço/Alerta) */
+    --color-warning: #FFC107;       /* Amarelo quente (Destaques) */
+    --color-accent: #D35400;        /* Terracota (Artesanal) */
+    
+    --color-bg-body: #F8F9FA;       /* Off-white (Fundo) */
+    --color-bg-card: #FFFFFF;       /* Branco puro */
+    --color-text-main: #212529;     /* Preto suave */
+    --color-text-muted: #6C757D;    /* Cinza médio */
+    
+    /* 2.3 TIPOGRAFIA (Inter) */
+    --font-main: 'Inter', sans-serif;
+    --fw-regular: 400;
+    --fw-medium: 500;
+    --fw-semibold: 600;
+    --fw-bold: 700;
+
+    /* ESPAÇAMENTO (O "Silêncio Visual") */
+    --space-xs: 4px;
+    --space-sm: 8px;
+    --space-md: 16px;
+    --space-lg: 24px;
+    --space-xl: 32px;
+    --space-xxl: 64px; /* Para respiro nas seções */
+
+    /* 2.4 COMPONENTES BASE (Bordas e Sombras) */
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    
+    /* Sombra quase invisível */
+    --shadow-card: 0 2px 8px rgba(0, 0, 0, 0.04);
+    --shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.08);
+
+    /* 2.5 ANIMAÇÕES (Regras Rígidas) */
+    --transition-fast: all 0.2s ease-in-out;
+    --transition-smooth: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+/* Reset básico para garantir o "Silêncio" */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: var(--font-main);
+}
+
+body {
+    background-color: var(--color-bg-body);
+    color: var(--color-text-main);
+    line-height: 1.5;
+}

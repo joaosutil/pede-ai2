@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rastreio - PedeAi</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        /* =========================================
+           CSS ESPECÍFICO DE RASTREIO (ANIMADO)
+           ========================================= */
+        body {
+            display: flex; flex-direction: column; min-height: 100vh;
+            background-color: #f8fafc;
+            /* Fundo Aurora Sutil */
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(16, 185, 129, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(59, 130, 246, 0.15) 0px, transparent 50%);
+            background-attachment: fixed;
+        }
+
+        .track-container {
+            flex: 1; display: flex; align-items: center; justify-content: center;
+            padding: 40px 20px; margin-top: 60px; /* Espaço pro header */
+        }
+
+        /* CARD DE VIDRO */
+        .track-card {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            width: 100%; max-width: 500px;
+            border-radius: 30px;
+            box-shadow: 0 20px 50px -10px rgba(0,0,0,0.1);
+            border: 1px solid rgba(255,255,255,0.6);
+            padding: 40px;
+            position: relative; overflow: hidden;
+            animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        /* TEXTO BRILHANTE */
+        .track-title {
+            font-size: 2rem; font-weight: 900; letter-spacing: -1px; margin-bottom: 5px;
+            background: linear-gradient(135deg, #0f172a 0%, #334155 100%);
+            background-clip: text;
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            text-align: center;
+        }
+
+        /* INPUT BUSCA */
+        .input-pill {
+            display: flex; background: white; border-radius: 50px;
+            padding: 5px; margin-top: 25px; margin-bottom: 30px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05); border: 1px solid rgba(0,0,0,0.05);
+            transition: 0.3s;
+        }
+        .input-pill:focus-within { box-shadow: 0 8px 25px rgba(16, 185, 129, 0.2); transform: scale(1.02); }
+        
+        .input-field {
+            flex: 1; border: none; padding: 12px 20px; font-size: 1rem; outline: none; background: transparent;
+        }
+        .btn-search {
+            background: var(--primary); color: white; border: none;
+            padding: 10px 25px; border-radius: 40px; font-weight: 700; cursor: pointer;
+            transition: 0.2s;
+        }
+        .btn-search:hover { background: #059669; transform: scale(1.05); }
+
+        /* HERO STATUS (ÍCONE FLUTUANTE) */
+        .status-hero { text-align: center; margin-bottom: 30px; }
+        .hero-emoji { font-size: 4.5rem; display: inline-block; animation: float 3s ease-in-out infinite; }
+        .hero-label { font-size: 1.5rem; font-weight: 800; color: var(--primary); margin-top: 10px; }
+        .hero-sub { color: #64748b; font-size: 0.9rem; margin-top: 5px; }
+
+        /* TIMELINE MÁGICA */
+        .timeline-wrapper { position: relative; padding-left: 30px; margin-top: 20px; }
+        
+        /* Linha de Fundo (Cinza) */
+        .timeline-line {
+            position: absolute; left: 14px; top: 10px; bottom: 30px; width: 3px;
+            background: #e2e8f0; border-radius: 3px; z-index: 0;
+        }
+        /* Linha de Progresso (Verde) - Altura controlada via JS */
+        .timeline-progress {
+            position: absolute; left: 14px; top: 10px; width: 3px;
+            background: var(--primary); border-radius: 3px; z-index: 1;
+            height: 0%; transition: height 1s ease;
+        }
+
+        .step { position: relative; padding-bottom: 35px; z-index: 2; display: flex; align-items: flex-start; gap: 15px; }
+        .step:last-child { padding-bottom: 0; }
+
+        /* Bolinha do Passo */
+        .step-marker {
+            width: 32px; height: 32px; border-radius: 50%; background: white;
+            border: 3px solid #cbd5e1; display: flex; align-items: center; justify-content: center;
+            font-size: 14px; transition: 0.4s; flex-shrink: 0;
+        }
+
+        /* Estilos de Estado */
+        .step.completed .step-marker { background: var(--primary); border-color: var(--primary); color: white; }
+        .step.active .step-marker {
+            background: white; border-color: var(--primary); color: var(--primary);
+            box-shadow: 0 0 0 5px rgba(16, 185, 129, 0.2);
+            animation: pulseBorder 2s infinite;
+        }
+        .step.pending .step-marker { color: #ccc; }
+
+        .step-content h4 { margin: 0; font-size: 1rem; font-weight: 700; color: #1e293b; }
+        .step-content p { margin: 2px 0 0; font-size: 0.8rem; color: #64748b; }
+
+        /* ANIMAÇÕES */
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px) rotate(5deg); } }
+        @keyframes pulseBorder { 0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); } 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); } }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Error Box */
+        .error-box { background: #fee2e2; color: #991b1b; padding: 15px; border-radius: 12px; text-align: center; margin-top: 20px; display: none; font-weight: 600; }
+    </style>
+</head>
+<body>
+
+    <header class="main-header">
+        <nav class="glass-nav">
+            <a href="index.html" class="logo">PedeAi<span style="color:var(--primary)">.</span></a>
+            <a href="index.html" class="btn" style="background:#f1f5f9; color:#333;">← Voltar</a>
+        </nav>
+    </header>
+
+    <div class="track-container">
+        <div class="track-card">
+            <div class="track-title">Rastrear Pedido</div>
+            <p style="text-align:center; color:#64748b; font-size:0.9rem;">Digite o código ou acompanhe em tempo real</p>
+
+            <div class="input-pill">
+                <input type="text" id="track-input" class="input-field" placeholder="Ex: ID do Pedido">
+                <button onclick="manualSearch()" class="btn-search">Buscar</button>
+            </div>
+
+            <div id="track-result" style="display:none;">
+                <div class="status-hero">
+                    <div class="hero-emoji" id="hero-icon">🛵</div>
+                    <div class="hero-label" id="hero-status">Saiu para Entrega</div>
+                    <div class="hero-sub" id="hero-msg">Seu pedido está chegando!</div>
+                    <div style="margin-top:10px;">
+                        <span style="background:#f1f5f9; padding:4px 10px; border-radius:6px; font-size:0.75rem; font-weight:700; color:#64748b;" id="display-id">#ID</span>
+                    </div>
+                </div>
+
+                <div class="timeline-wrapper">
+                    <div class="timeline-line"></div>
+                    <div class="timeline-progress" id="progress-bar"></div>
+                    
+                    <div id="steps-container">
+                        </div>
+                </div>
+            </div>
+
+            <div id="error-msg" class="error-box"></div>
+        </div>
+    </div>
+
+    <script>
+        const API = 'http://localhost:3000/api';
+        let currentId = null;
+        let interval = null;
+
+        // 1. INICIALIZAÇÃO
+        window.onload = () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const id = urlParams.get('id');
+            if(id) {
+                document.getElementById('track-input').value = id;
+                startTracking(id);
+            }
+        }
+
+        // 2. BUSCA MANUAL
+        function manualSearch() {
+            const id = document.getElementById('track-input').value.trim();
+            if(!id) return;
+            const newUrl = `${window.location.pathname}?id=${id}`;
+            window.history.pushState({path:newUrl},'',newUrl);
+            startTracking(id);
+        }
+
+        // 3. START
+        function startTracking(id) {
+            currentId = id;
+            if(interval) clearInterval(interval);
+            fetchData();
+            interval = setInterval(fetchData, 5000);
+        }
+
+        // 4. FETCH
+        async function fetchData() {
+            if(!currentId) return;
+            try {
+                const res = await fetch(`${API}/orders/${currentId}`);
+                if(!res.ok) {
+                    showError("Pedido não encontrado (Verifique o ID)");
+                    clearInterval(interval);
+                    return;
+                }
+                const json = await res.json();
+                if(json.success) render(json.data);
+            } catch(e) { console.error(e); showError("Erro de conexão"); }
+        }
+
+        // 5. RENDERIZAÇÃO
+        function render(order) {
+            document.getElementById('error-msg').style.display = 'none';
+            document.getElementById('track-result').style.display = 'block';
+
+            document.getElementById('display-id').innerText = `#${order._id.slice(-6).toUpperCase()}`;
+            
+            // Definição dos Passos
+            const stepsDef = [
+                { key: 'Novo', label: 'Pedido Recebido', icon: '📝' },
+                { key: 'Em Preparo', label: 'Em Preparo', icon: '🔥' },
+                { key: 'Saiu para Entrega', label: 'Saiu para Entrega', icon: '🛵' },
+                { key: 'Entregue', label: 'Pedido Entregue', icon: '🎉' }
+            ];
+
+            // Normaliza status (Backend pode variar)
+            let status = order.status;
+            if(status === 'Enviado') status = 'Saiu para Entrega';
+            if(status === 'Concluido') status = 'Entregue';
+
+            // Índice do status atual (0 a 3)
+            let currentIdx = stepsDef.findIndex(s => s.key === status);
+            if(currentIdx === -1 && status === 'Cancelado') currentIdx = -1; // Tratamento especial para cancelado
+
+            // Renderiza Hero
+            updateHero(status, order.customer.name);
+
+            // Renderiza Steps
+            const container = document.getElementById('steps-container');
+            container.innerHTML = '';
+            
+            stepsDef.forEach((step, idx) => {
+                let stateClass = 'pending';
+                if(idx < currentIdx) stateClass = 'completed';
+                if(idx === currentIdx) stateClass = 'active';
+
+                // Busca horário se disponível
+                // (Lógica simplificada: se timeline existe, tenta achar algo próximo)
+                let timeStr = '';
+                if(stateClass !== 'pending' && order.timeline) {
+                   // Tenta achar o horário exato desse passo
+                   const log = order.timeline.find(t => mapStatus(t.status) === step.key);
+                   if(log) timeStr = new Date(log.timestamp).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+                }
+
+                container.innerHTML += `
+                    <div class="step ${stateClass}">
+                        <div class="step-marker">${stateClass === 'completed' ? '✓' : step.icon}</div>
+                        <div class="step-content">
+                            <h4>${step.label}</h4>
+                            <p>${timeStr || (stateClass==='pending' ? 'Aguardando...' : 'Atualizado')}</p>
+                        </div>
+                    </div>
+                `;
+            });
+
+            // Animação da Barra Verde (Cálculo de Altura)
+            // Se currentIdx = 0 -> 0%
+            // Se currentIdx = 1 -> 33%
+            // Se currentIdx = 2 -> 66%
+            // Se currentIdx = 3 -> 100%
+            const progress = document.getElementById('progress-bar');
+            if (currentIdx >= 0) {
+                const pct = (currentIdx / (stepsDef.length - 1)) * 100;
+                // Ajuste visual para a barra não passar do ponto
+                // A altura total da linha cobre os espaços entre os pontos
+                // Vamos usar um valor aproximado para visual:
+                progress.style.height = `${pct}%`;
+            } else {
+                progress.style.height = '0%';
+            }
+        }
+
+        function updateHero(status, name) {
+            const icon = document.getElementById('hero-icon');
+            const label = document.getElementById('hero-status');
+            const msg = document.getElementById('hero-msg');
+
+            const firstName = name.split(' ')[0];
+
+            switch(status) {
+                case 'Novo':
+                    icon.innerText = '⏳'; label.innerText = 'Na Fila'; label.style.color = '#3b82f6';
+                    msg.innerText = `Aguardando o restaurante aceitar, ${firstName}.`;
+                    break;
+                case 'Em Preparo':
+                    icon.innerText = '👨‍🍳'; label.innerText = 'Preparando'; label.style.color = '#f59e0b';
+                    msg.innerText = `A chapa está quente! Logo fica pronto.`;
+                    break;
+                case 'Saiu para Entrega':
+                    icon.innerText = '🛵'; label.innerText = 'A Caminho'; label.style.color = '#8b5cf6';
+                    msg.innerText = `O entregador já saiu, ${firstName}!`;
+                    break;
+                case 'Entregue':
+                    icon.innerText = '🥳'; label.innerText = 'Entregue'; label.style.color = '#10b981';
+                    msg.innerText = `Bom apetite, ${firstName}!`;
+                    break;
+                case 'Cancelado':
+                    icon.innerText = '❌'; label.innerText = 'Cancelado'; label.style.color = '#ef4444';
+                    msg.innerText = `Entre em contato com o restaurante.`;
+                    break;
+            }
+        }
+
+        function mapStatus(s) {
+            if(s === 'Enviado') return 'Saiu para Entrega';
+            if(s === 'Concluido') return 'Entregue';
+            return s;
+        }
+
+        function showError(msg) {
+            document.getElementById('track-result').style.display = 'none';
+            const err = document.getElementById('error-msg');
+            err.style.display = 'block';
+            err.innerText = msg;
+        }
+    </script>
+</body>
+</html>

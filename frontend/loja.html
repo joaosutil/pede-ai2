@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cardápio Digital</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+  <style>
+    :root {
+        --primary: #ea1d2c;
+        --bg: #f3f4f6;
+        --text: #1f2937;
+    }
+    
+    * { 
+        box-sizing: border-box; 
+        font-family: 'Segoe UI', sans-serif; 
+        -webkit-tap-highlight-color: transparent; 
+        outline: none;
+    }
+    
+    body { 
+        margin: 0; padding: 0; 
+        background: var(--bg); color: var(--text); 
+        padding-bottom: 90px; /* Espaço para o botão flutuante não cobrir o conteúdo */
+    }
+
+    /* --- HEADER (TOPO) --- */
+    header { 
+        background: white; 
+        padding: 15px; 
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1); 
+        position: sticky; top: 0; z-index: 900; 
+    }
+    
+    /* --- GRID DE PRODUTOS --- */
+    .container { max-width: 1200px; margin: 0 auto; padding: 15px; }
+    
+    #product-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 15px;
+    }
+
+    .card {
+        background: white; border-radius: 12px; overflow: hidden;
+        box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        display: flex; flex-direction: row; border: 1px solid #e5e7eb;
+        cursor: pointer;
+    }
+    .card:active { transform: scale(0.98); background: #f9fafb; }
+
+    /* --- SIDEBAR DO CARRINHO (A MÁGICA ESTÁ AQUI) --- */
+    #cart-sidebar {
+        position: fixed; 
+        top: 0; right: -100%; /* Começa escondido */
+        width: 100%; max-width: 450px; /* No celular ocupa 100% */
+        height: 100%; /* Altura total */
+        height: 100dvh; /* Altura dinâmica para ignorar barra do navegador */
+        background: white; 
+        z-index: 2500;
+        transition: right 0.3s ease;
+        
+        /* FLEXBOX VERTICAL PARA TRAVAR O RODAPÉ */
+        display: flex; 
+        flex-direction: column; 
+        box-shadow: -5px 0 15px rgba(0,0,0,0.1);
+    }
+
+    /* 1. Cabeçalho do Carrinho (Fixo no topo) */
+    .cart-header { 
+        padding: 15px; 
+        background: var(--primary); 
+        color: white; 
+        flex-shrink: 0; /* Não encolhe */
+        display: flex; justify-content: space-between; align-items: center;
+        font-weight: bold;
+    }
+
+    /* 2. Corpo do Carrinho (O único que rola) */
+    .cart-body { 
+        flex: 1; /* Ocupa todo o espaço livre no meio */
+        overflow-y: auto; /* Cria barra de rolagem SÓ AQUI */
+        padding: 15px;
+        background: #f8fafc;
+    }
+
+    /* 3. Rodapé do Carrinho (Fixo no fundo) */
+    .cart-footer { 
+        padding: 15px; 
+        background: white; 
+        border-top: 1px solid #eee;
+        flex-shrink: 0; /* Não encolhe */
+        box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+        
+        /* Garante que apareça acima da barra do iPhone */
+        padding-bottom: max(15px, env(safe-area-inset-bottom)); 
+    }
+
+    /* --- MODAL GERAL (CORREÇÃO DE SCROLL) --- */
+    .modal-overlay {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.6); backdrop-filter: blur(3px);
+        display: none; align-items: center; justify-content: center; z-index: 3000;
+        padding: 15px;
+    }
+    
+    .modal-content {
+        background: white; width: 100%; max-width: 500px;
+        border-radius: 16px; 
+        display: flex; flex-direction: column;
+        
+        /* Limita altura para não sair da tela */
+        max-height: 90vh; 
+        max-height: 90dvh;
+        overflow-y: auto; /* Permite rolar se o conteúdo for grande */
+        
+        box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        position: relative;
+    }
+
+    /* Padding interno do modal */
+    .modal-body { padding: 20px; }
+
+    /* --- BOTÃO FLUTUANTE --- */
+    #floating-cart-btn {
+        position: fixed; bottom: 20px; right: 20px;
+        background: var(--primary); color: white;
+        padding: 15px 25px; border-radius: 50px;
+        box-shadow: 0 4px 15px rgba(234, 29, 44, 0.4);
+        display: none; align-items: center; gap: 10px;
+        font-weight: bold; cursor: pointer; z-index: 1500;
+        transition: transform 0.2s;
+    }
+
+    /* --- INPUTS E BOTÕES --- */
+    .form-input {
+        width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px;
+        margin-bottom: 10px; font-size: 16px; background: white;
+    }
+    
+    .btn-primary {
+        width: 100%; padding: 16px; 
+        background: var(--primary); color: white;
+        border: none; border-radius: 10px; 
+        font-size: 1rem; font-weight: 700;
+        cursor: pointer; text-align: center;
+        margin-top: 10px;
+        box-shadow: 0 4px 6px rgba(234, 29, 44, 0.2);
+    }
+    .btn-primary:active { transform: scale(0.98); opacity: 0.9; }
+
+    /* --- AJUSTES MOBILE EXTREMOS --- */
+    @media (max-width: 768px) {
+        #product-list { grid-template-columns: 1fr; }
+        
+        /* No celular, o modal de cartão ocupa mais espaço pra caber tudo */
+        .modal-content { max-height: 95dvh; width: 95%; }
+        
+        /* Botão flutuante centralizado e largo */
+        #floating-cart-btn {
+            left: 15px; right: 15px; width: auto; 
+            justify-content: center; bottom: 15px;
+            border-radius: 12px;
+        }
+        
+        /* Carrinho ocupa 100% da largura */
+        #cart-sidebar { width: 100%; max-width: 100%; }
+        
+        /* Imagem menor na lista pra sobrar espaço pro texto */
+        .card img { width: 110px; } 
+    }
+</style>
+</head>
+<body>
+<nav style="
+    position: fixed; top: 15px; left: 50%; transform: translateX(-50%); 
+    width: 90%; max-width: 960px; z-index: 1000;
+    background: rgba(255, 255, 255, 0.9); backdrop-filter: blur(10px);
+    padding: 10px 20px; border-radius: 50px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.08); border: 1px solid rgba(255,255,255,0.5);
+    display: flex; justify-content: space-between; align-items: center;
+">
+    <a href="index.html" style="font-weight: 800; font-size: 1.2rem; color: #0f172a; text-decoration: none;">
+        PedeAi<span style="color:#10b981">.</span>
+    </a>
+    
+    <div style="display: flex; gap: 10px;">
+        <a href="meus-pedidos.html" style="font-weight: 600; font-size: 0.9rem; color: #64748b; text-decoration: none; padding: 8px 15px;">
+            Meus Pedidos
+        </a>
+        <a href="index.html" style="
+            background: #f1f5f9; color: #333; 
+            padding: 8px 15px; border-radius: 20px; 
+            font-weight: 600; font-size: 0.9rem; text-decoration: none;
+            display: flex; align-items: center; gap: 5px;
+        ">
+            ← Voltar
+        </a>
+    </div>
+</nav>
+
+<div style="height: 80px;"></div>
+    <header class="store-header-bg">
+        <div class="container" id="store-header-content">
+            <div style="text-align:center; color:#999;">Carregando cardápio...</div>
+        </div>
+    </header>
+
+    <div class="container">
+        <h2 class="section-title">Destaques</h2>
+        <div id="product-list" class="product-grid">
+            </div>
+    </div>
+
+    <div onclick="toggleCart()" class="floating-cart" id="floating-cart-btn" style="display: none;">
+        <span>🛒 Ver Sacola</span>
+        <span class="cart-count" style="background:var(--primary); color:white; padding:2px 8px; border-radius:10px; font-size:0.8rem;">0</span>
+    </div>
+
+    <div id="product-modal" class="modal-overlay">
+        <div class="modal-content">
+            <div style="position:relative;">
+                <img id="modal-img" src="" style="width:100%; height:200px; object-fit:cover;">
+                <button onclick="closeModal()" style="position:absolute; top:10px; right:10px; background:white; border:none; width:32px; height:32px; border-radius:50%; font-weight:bold; cursor:pointer; box-shadow:0 2px 5px rgba(0,0,0,0.2);">✕</button>
+            </div>
+            
+            <div class="modal-body">
+                <h2 id="modal-title" style="margin-bottom:5px; font-size:1.4rem;"></h2>
+                <p id="modal-desc" style="color:var(--text-muted); font-size:0.95rem; margin-bottom:20px; line-height:1.4;"></p>
+                
+                <div class="form-group">
+                    <label class="form-label">Alguma observação?</label>
+                    <textarea id="modal-obs" class="form-input" rows="2" placeholder="Ex: Tirar cebola, maionese à parte..."></textarea>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <div class="qty-selector">
+                    <button class="qty-btn" onclick="changeQty(-1)">-</button>
+                    <span id="modal-qty" style="font-weight:700; width:20px; text-align:center;">1</span>
+                    <button class="qty-btn" onclick="changeQty(1)">+</button>
+                </div>
+                
+                <button onclick="addToCart()" class="btn-primary" style="padding: 12px 25px;">
+                    Adicionar R$ <span id="modal-price">0.00</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="cart-overlay" class="cart-overlay" onclick="toggleCart()"></div>
+    <div id="cart-sidebar">
+    <div class="cart-header">
+        <h2 style="margin:0; font-size:1.2rem;">Sua Sacola</h2>
+        <button onclick="toggleCart()" style="background:none; border:none; color:white; font-size:1.5rem;">&times;</button>
+    </div>
+
+    <div class="cart-body">
+        <div id="cart-items">
+            </div>
+    </div>
+
+    <div class="cart-footer">
+        <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+            <span>Subtotal:</span>
+            <span>R$ <span id="cart-subtotal">0.00</span></span>
+        </div>
+        <div style="display:flex; justify-content:space-between; margin-bottom:5px; color:#666;">
+            <span>Entrega:</span>
+            <span>R$ <span id="cart-delivery">0.00</span></span>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:1.2rem; margin-top:10px; margin-bottom:15px;">
+            <span>Total:</span>
+            <span style="color:var(--primary);">R$ <span id="cart-total">0.00</span></span>
+        </div>
+
+        <input type="text" id="customer-name" class="form-input" placeholder="Seu Nome">
+        <input type="tel" id="customer-phone" class="form-input" placeholder="Seu Telefone (WhatsApp)">
+        <input type="text" id="customer-address" class="form-input" placeholder="Endereço (Rua, Número, Comp.)">
+        
+        <select id="delivery-zone-select" class="form-input" onchange="updateTotalWithFreight()">
+            <option>Carregando bairros...</option>
+        </select>
+
+        <div id="payment-container" style="background: #f8fafc; padding: 10px; border-radius: 8px; border: 1px solid #eee; margin-bottom:10px;">
+            <label style="font-weight:bold; display:block; margin-bottom:5px;">Forma de Pagamento:</label>
+            <select id="payment-method" class="form-input" onchange="togglePaymentOptions()">
+                <option value="">Selecione...</option>
+                <option value="Pix">Pix</option>
+                <option value="Cartão de Crédito">Cartão (Site)</option>
+                <option value="Dinheiro">Dinheiro</option>
+                <option value="Cartão Entrega">Cartão (Maquininha)</option>
+            </select>
+            
+            <div id="card-options" style="display:none; margin-top:5px;">
+                <label><input type="radio" name="payer-type" value="individual" checked> CPF</label>
+                <label style="margin-left:10px;"><input type="radio" name="payer-type" value="association"> CNPJ</label>
+            </div>
+            <div id="cash-options" style="display:none; margin-top:5px;">
+                <input type="number" id="cash-change-input" class="form-input" placeholder="Troco para quanto?">
+            </div>
+        </div>
+
+        <button class="btn-primary" onclick="finalizeOrder()">FINALIZAR PEDIDO</button>
+    </div>
+</div>
+
+<div id="pix-modal" class="modal-overlay" style="display:none; z-index:3000;">
+    <div class="modal-content" style="text-align: center; max-width: 400px;">
+        <h3>Pagamento Pix</h3>
+        <p style="color:#666; font-size:0.9rem;">Escaneie o QR Code ou copie o código.</p>
+        <img id="pix-qr-img" src="" style="width: 200px; height: 200px; margin: 10px auto; display: block;">
+        <input type="text" id="pix-code-text" readonly style="width: 100%; padding:10px; margin-bottom:10px; text-align:center; background:#f8fafc; border:1px solid #ddd; border-radius:6px;">
+        <button onclick="copyPix()" style="color:var(--primary); background:none; border:none; font-weight:bold; cursor:pointer; margin-bottom:15px;">Copiar Código</button>
+        
+        <div id="pix-status-msg" style="font-weight:bold; color:#f59e0b; margin-top:10px; padding:10px; background:#fffbeb; border-radius:8px;">
+            Aguardando pagamento...
+        </div>
+        
+        <button onclick="closePixModal()" style="margin-top:20px; color:red; background:none; border:none; cursor:pointer;">Fechar</button>
+    </div>
+</div>
+
+<div id="card-modal" class="modal-overlay" style="display:none; z-index:3000;">
+    <div class="modal-content" style="max-width: 500px; width: 95%;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px;">
+            <h3 style="margin:0;">Pagamento com Cartão</h3>
+            <button onclick="document.getElementById('card-modal').style.display='none'" style="background:none; border:none; font-size:1.5rem; cursor:pointer;">&times;</button>
+        </div>
+        <div id="cardPaymentBrick_container"></div>
+    </div>
+</div>
+
+   <<script src="https://sdk.mercadopago.com/js/v2"></script>
+
+    <script>
+        // =================================================================
+        // 🛍️ SCRIPT MESTRE: LOJA + CARRINHO + PAGAMENTO (RESTAURADO)
+        // =================================================================
+
+        // 1. CONFIGURAÇÕES
+        const API = 'https://epistemologically-phenomenal-river.ngrok-free.dev/api';
+        const CART_STORAGE_KEY = 'pedeai_user_cart';
+        
+        // ⚠️ SUA CHAVE DE TESTE (NÃO MUDE PARA APP_USR)
+        const MP_PUBLIC_KEY = 'APP_USR-8c8c9a5e-cf99-4530-ac8f-4dbafc61d8bd'; 
+
+        // Variáveis Globais
+        let currentRestaurant = null;
+        let cart = [];
+        let selectedProduct = null;
+        let qty = 1;
+        let selectedFreight = 0;
+        
+        // Variáveis de Pagamento
+        let currentPaymentId = null; 
+        let paymentCheckInterval = null;
+        let mp = new MercadoPago(MP_PUBLIC_KEY, { locale: 'pt-BR' });
+        let cardBrickController = null;
+
+        // 2. INICIALIZAÇÃO
+        (async () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const slug = urlParams.get('slug');
+            if (!slug) return alert('Loja não especificada na URL.');
+            
+            await loadRestaurant(slug);
+            loadCart();
+            
+            // Inicia UI de pagamento
+            setTimeout(togglePaymentOptions, 500);
+        })();
+
+        // 3. FUNÇÕES VISUAIS DA LOJA (COM FOTOS E DESCRIÇÕES DE VOLTA)
+        async function loadRestaurant(slug) {
+            try {
+                const res = await fetch(`${API}/restaurants/slug/${slug}`);
+                const json = await res.json();
+                
+                if (!json.success) throw new Error(json.message);
+                currentRestaurant = json.data;
+
+                // Renderiza Header
+                renderStoreHeader();
+                
+                // Renderiza Menu
+                if(currentRestaurant.products && currentRestaurant.products.length > 0) {
+                    renderMenu(currentRestaurant.products);
+                } else {
+                    document.getElementById('product-list').innerHTML = '<div style="padding:40px; text-align:center; color:#666;">Cardápio vazio no momento.</div>';
+                }
+
+                // Renderiza Bairros
+                setupDeliveryZones();
+
+            } catch (error) {
+                console.error(error);
+                document.body.innerHTML = `<div style="text-align:center; padding:50px;"><h1>😵 Ops!</h1><p>${error.message}</p></div>`;
+            }
+        }
+
+        function renderStoreHeader() {
+            const img = currentRestaurant.image || 'img/default-food.png';
+            document.getElementById('store-header-content').innerHTML = `
+                <div style="display:flex; align-items:center; gap:20px;">
+                    <img src="${img}" style="width:80px; height:80px; border-radius:12px; object-fit:cover; border:2px solid white; box-shadow:0 2px 10px rgba(0,0,0,0.1);">
+                    <div>
+                        <h1 style="margin:0; font-size:1.5rem;">${currentRestaurant.name}</h1>
+                        <p style="color:#eee; margin:5px 0; font-size:0.9rem;">${currentRestaurant.category || 'Restaurante'} • ${currentRestaurant.deliveryTime || '30-40 min'}</p>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderMenu(products) {
+            const list = document.getElementById('product-list');
+            list.innerHTML = products.map(p => `
+                <div class="card" onclick='openProduct(${JSON.stringify(p).replace(/'/g, "&#39;")})' style="flex-direction:row; min-height:120px; cursor:pointer; transition:transform 0.2s;">
+                    <div style="padding:15px; flex:1; display:flex; flex-direction:column; justify-content:space-between;">
+                        <div>
+                            <div style="font-weight:700; margin-bottom:5px; color:#1e293b;">${p.name}</div>
+                            <div style="font-size:0.85rem; color:#64748b; line-height:1.4;">${p.description || 'Sem descrição.'}</div>
+                        </div>
+                        <div style="font-weight:700; color:#10b981; margin-top:10px;">R$ ${p.price.toFixed(2)}</div>
+                    </div>
+                    ${p.image ? `<img src="${p.image}" style="width:120px; height:100%; object-fit:cover; border-left:1px solid #f1f5f9; border-top-right-radius:12px; border-bottom-right-radius:12px;">` : ''}
+                </div>
+            `).join('');
+        }
+
+        // 4. CARRINHO E MODAL DE PRODUTO
+        function openProduct(product) {
+            selectedProduct = product;
+            qty = 1;
+            
+            // Atualiza imagem do modal se existir
+            const imgEl = document.getElementById('modal-img');
+            if(imgEl) {
+                imgEl.src = product.image || '';
+                imgEl.style.display = product.image ? 'block' : 'none';
+            }
+            
+            document.getElementById('modal-title').innerText = product.name;
+            document.getElementById('modal-desc').innerText = product.description || '';
+            document.getElementById('modal-price').innerText = product.price.toFixed(2);
+            document.getElementById('modal-qty').innerText = qty;
+            document.getElementById('modal-obs').value = ''; 
+            
+            document.getElementById('product-modal').style.display = 'flex';
+        }
+
+        function closeModal() { document.getElementById('product-modal').style.display = 'none'; }
+        
+        function changeQty(d) {
+            if(qty + d >= 1) {
+                qty += d;
+                document.getElementById('modal-qty').innerText = qty;
+                document.getElementById('modal-price').innerText = (selectedProduct.price * qty).toFixed(2);
+            }
+        }
+
+        function addToCart() {
+            const obs = document.getElementById('modal-obs').value.trim();
+            const existing = cart.find(i => i._id === selectedProduct._id && i.observation === obs);
+            if(existing) { existing.qty += qty; } 
+            else { cart.push({ ...selectedProduct, qty, observation: obs }); }
+            
+            saveCart(); closeModal(); updateCartUI();
+            
+            // Abre o carrinho automaticamente
+            const sidebar = document.getElementById('cart-sidebar');
+            if(sidebar.style.right !== '0px') toggleCart();
+        }
+
+        function removeFromCart(index) {
+            cart.splice(index, 1);
+            saveCart();
+            updateCartUI();
+        }
+
+        function loadCart() {
+            const saved = localStorage.getItem(CART_STORAGE_KEY);
+            if (saved) { try { cart = JSON.parse(saved); updateCartUI(); } catch (e) {} }
+        }
+        function saveCart() { localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart)); }
+
+        function toggleCart() {
+            const sidebar = document.getElementById('cart-sidebar');
+            const overlay = document.getElementById('cart-overlay');
+            const isOpen = sidebar.style.right === '0px';
+            sidebar.style.right = isOpen ? '-450px' : '0px';
+            overlay.style.display = isOpen ? 'none' : 'block';
+        }
+
+        function updateCartUI() {
+            const countSpan = document.querySelector('.cart-count');
+            const btnFloat = document.getElementById('floating-cart-btn');
+            const totalQty = cart.reduce((a, b) => a + b.qty, 0);
+            
+            if(countSpan) countSpan.innerText = totalQty;
+            if(btnFloat) btnFloat.style.display = totalQty > 0 ? 'flex' : 'none';
+
+            const container = document.getElementById('cart-items');
+            if(cart.length === 0) {
+                container.innerHTML = '<div style="padding:30px; text-align:center; color:#94a3b8;">Sua sacola está vazia 🛍️</div>';
+            } else {
+                container.innerHTML = cart.map((item, i) => `
+                    <div style="padding:15px; border-bottom:1px solid #f1f5f9; display:flex; justify-content:space-between;">
+                        <div>
+                            <div style="font-weight:600;">${item.qty}x ${item.name}</div>
+                            ${item.observation ? `<small style="color:#d97706;">📝 ${item.observation}</small>` : ''}
+                            <div style="font-weight:700; color:#10b981;">R$ ${(item.price * item.qty).toFixed(2)}</div>
+                        </div>
+                        <button onclick="removeFromCart(${i})" style="color:red; border:none; background:none; cursor:pointer;">✕</button>
+                    </div>
+                `).join('');
+            }
+
+            const sub = cart.reduce((a, b) => a + (b.price * b.qty), 0);
+            document.getElementById('cart-subtotal').innerText = sub.toFixed(2);
+            document.getElementById('cart-delivery').innerText = selectedFreight.toFixed(2);
+            document.getElementById('cart-total').innerText = (sub + selectedFreight).toFixed(2);
+        }
+
+        // 5. FRETE
+        function setupDeliveryZones() {
+            const select = document.getElementById('delivery-zone-select');
+            select.innerHTML = '<option value="" data-price="-1">Selecione seu bairro...</option>';
+
+            if (currentRestaurant.deliveryZones && currentRestaurant.deliveryZones.length > 0) {
+                currentRestaurant.deliveryZones.forEach(z => {
+                    const opt = document.createElement('option');
+                    opt.value = z.name;
+                    opt.dataset.price = z.price;
+                    opt.textContent = `${z.name} (+ R$ ${z.price.toFixed(2)})`;
+                    select.appendChild(opt);
+                });
+            } else {
+                const fee = currentRestaurant.deliveryFee || 0;
+                select.innerHTML += `<option value="Padrão" data-price="${fee}" selected>Entrega Padrão (+ R$ ${fee.toFixed(2)})</option>`;
+                selectedFreight = fee;
+                updateTotalWithFreight();
+            }
+        }
+
+        function updateTotalWithFreight() {
+            const sel = document.getElementById('delivery-zone-select');
+            const price = parseFloat(sel.options[sel.selectedIndex]?.dataset.price || 0);
+            selectedFreight = price >= 0 ? price : 0;
+            updateCartUI();
+        }
+
+        // 6. UI PAGAMENTO
+        function togglePaymentOptions() {
+            const methodSelect = document.getElementById('payment-method');
+            const cardOpts = document.getElementById('card-options');
+            const cashOpts = document.getElementById('cash-options');
+
+            if (!methodSelect || !cardOpts || !cashOpts) return;
+
+            const method = methodSelect.value;
+            cardOpts.style.display = 'none';
+            cashOpts.style.display = 'none';
+
+            if (method === 'Cartão de Crédito') cardOpts.style.display = 'block';
+            else if (method === 'Dinheiro') cashOpts.style.display = 'block';
+        }
+
+        // 7. FINALIZAR PEDIDO (LÓGICA PRINCIPAL)
+        async function finalizeOrder() {
+            const name = document.getElementById('customer-name').value;
+            const phone = document.getElementById('customer-phone').value;
+            const address = document.getElementById('customer-address').value;
+            const zoneSelect = document.getElementById('delivery-zone-select');
+            const method = document.getElementById('payment-method').value;
+
+            if(!name || !phone || !address) return alert('Preencha seus dados de entrega.');
+            if(cart.length === 0) return alert('Sacola vazia.');
+            if(selectedFreight < 0) return alert('Selecione seu bairro.');
+            if(!method) return alert('Selecione a forma de pagamento.');
+
+            const fullAddress = `${address} - ${zoneSelect.value}`;
+            const total = cart.reduce((a, b) => a + (b.price * b.qty), 0) + selectedFreight;
+
+            // Dados Extras
+            let finalObs = "";
+            let entityTypeInput = "individual"; 
+
+            if (method === 'Dinheiro') {
+                const changeVal = parseFloat(document.getElementById('cash-change-input').value);
+                if (changeVal) {
+                    if(changeVal < total) return alert('Valor do troco menor que o total!');
+                    finalObs = `Troco para R$ ${changeVal.toFixed(2)}`;
+                } else {
+                    finalObs = "Sem troco";
+                }
+            } 
+            else if (method === 'Cartão de Crédito') {
+                const radio = document.querySelector('input[name="payer-type"]:checked');
+                if(radio) entityTypeInput = radio.value;
+            }
+
+            const payload = {
+                restaurant: currentRestaurant._id,
+                customer: { name, phone, address: fullAddress },
+                items: cart.map(i => ({
+                    name: i.name, quantity: i.qty, price: i.price, observation: i.observation
+                })),
+                total: total,
+                paymentMethod: method,
+                observation: finalObs,
+                status: (method === 'Pix' || method === 'Cartão de Crédito') ? 'Aguardando Pagamento' : 'Novo'
+            };
+
+            try {
+                // Cria pedido
+                const res = await fetch(`${API}/orders`, {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(payload)
+                });
+                const json = await res.json();
+                if(!json.success) throw new Error(json.message);
+                
+                const orderId = json.data._id;
+                localStorage.removeItem(CART_STORAGE_KEY);
+                cart = []; updateCartUI(); toggleCart();
+
+                // Roteia
+                if (method === 'Pix') {
+                    startPixFlow(total, name, phone, orderId);
+                } 
+                else if (method === 'Cartão de Crédito') {
+                    showCardModal(total, 'cliente@pedeai.com', orderId, entityTypeInput);
+                } 
+                else {
+                    alert('✅ Pedido Realizado!');
+                    window.location.href = `rastreio.html?id=${orderId}`;
+                }
+
+            } catch (e) { console.error(e); alert('Erro ao criar pedido: ' + e.message); }
+        }
+
+        // 8. PIX
+        async function startPixFlow(amount, name, phone, orderId) {
+            try {
+                const res = await fetch(`${API}/payments/pix`, {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        amount: amount,
+                        description: `Pedido ${orderId.slice(-4)}`,
+                        payer: { email: 'cliente@pix.com' },
+                        orderId: orderId
+                    })
+                });
+                const json = await res.json();
+                if(!json.success) throw new Error(json.error);
+
+                const data = json.data;
+                currentPaymentId = data.id;
+
+                document.getElementById('pix-qr-img').src = `data:image/png;base64,${data.qr_code_base64}`;
+                document.getElementById('pix-code-text').value = data.qr_code;
+                document.getElementById('pix-modal').style.display = 'flex';
+                
+                paymentCheckInterval = setInterval(() => checkPixStatus(orderId), 3000);
+            } catch(e) { alert('Erro Pix: ' + e.message); }
+        }
+        
+        async function checkPixStatus(orderId) {
+            if(!currentPaymentId) return;
+            try {
+                const res = await fetch(`${API}/payments/status/${currentPaymentId}`);
+                const json = await res.json();
+                if (json.status === 'approved') {
+                    clearInterval(paymentCheckInterval);
+                    document.getElementById('pix-status-msg').innerHTML = "Pagamento Confirmado! ✅";
+                    document.getElementById('pix-status-msg').style.color = "green";
+                    
+                    await fetch(`${API}/orders/${orderId}/pay`, {
+                        method:'PUT', headers:{'Content-Type':'application/json'},
+                        body:JSON.stringify({ paymentId: currentPaymentId, status: 'Novo' })
+                    });
+
+                    setTimeout(() => { window.location.href = `rastreio.html?id=${orderId}`; }, 1500);
+                }
+            } catch(e){}
+        }
+        function copyPix() {
+            const t = document.getElementById("pix-code-text");
+            t.select(); document.execCommand("copy");
+            alert("Copiado!");
+        }
+        function closePixModal() {
+            if(paymentCheckInterval) clearInterval(paymentCheckInterval);
+            document.getElementById('pix-modal').style.display = 'none';
+        }
+// =================================================================
+    // 🚑 BRICK DE EMERGÊNCIA (DEBUG DE VALOR)
+    // =================================================================
+// =================================================================
+    // 🚑 BRICK "MODO AUTOMÁTICO" (SEM PERSONALIZAÇÃO)
+    // =================================================================
+async function showCardModal(amount, email, orderId, entityTypeInput) {
+    document.getElementById('card-modal').style.display = 'flex';
+    if (cardBrickController) {
+        await cardBrickController.unmount();
+        cardBrickController = null;
+    }
+    document.getElementById('cardPaymentBrick_container').innerHTML = ''; 
+
+    // Forçando a instância para garantir o Locale
+    const mpInstance = new MercadoPago(MP_PUBLIC_KEY, { locale: 'pt-BR' });
+    const bricksBuilder = mpInstance.bricks();
+
+    const renderCardPaymentBrick = async (bricksBuilder) => {
+        const settings = {
+            initialization: {
+                amount: Number(amount) < 1 ? 5 : Number(amount),
+                payer: { email: email || 'cliente@pedeai.com' },
+            },
+            customization: {
+                visual: {
+                    style: { theme: 'default' },
+                    // Escondendo o que não é essencial para evitar erros de renderização
+                    hidePaymentButton: false,
+                    hideFormTitle: true 
+                },
+                paymentMethods: {
+                    // Forçamos explicitamente apenas os tipos de cartão
+                    types: {
+                        included: ['credit_card', 'debit_card']
+                    }
+                }
+            },
+            callbacks: {
+                onReady: () => console.log('✅ Brick pronto!'),
+                onSubmit: (formData) => {
+                    return new Promise((resolve, reject) => {
+                        // Sua lógica de fetch para o backend aqui...
+                        console.log("Dados do Cartão:", formData);
+                    });
+                },
+                onError: (error) => {
+                    console.error("Erro detalhado:", error);
+                    // Se der erro de inicialização aqui, o problema é HTTPS ou Chave
+                }
+            }
+        };
+        // MUDANÇA: Usando 'cardPayment' em vez de apenas 'payment'
+        cardBrickController = await bricksBuilder.create('cardPayment', 'cardPaymentBrick_container', settings);
+    };
+    renderCardPaymentBrick(bricksBuilder);
+}
+    </script>
+</body>
+</html>

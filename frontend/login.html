@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - PedeAi Admin</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        body {
+            background-color: #f3f4f6;
+            display: flex; justify-content: center; align-items: center; height: 100vh;
+        }
+        .login-card {
+            background: white; width: 100%; max-width: 400px;
+            padding: 40px; border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
+        }
+        .login-header { text-align: center; margin-bottom: 30px; }
+        .login-logo { font-size: 2rem; font-weight: 800; color: var(--color-primary); letter-spacing: -0.05em; margin-bottom: 10px; display:block; }
+    </style>
+</head>
+<body>
+
+    <div class="login-card">
+        <div class="login-header">
+            <span class="login-logo">PedeAi.</span>
+            <p style="color: #666">Painel do Parceiro</p>
+        </div>
+
+        <form id="login-form">
+            <div class="form-group">
+                <label class="form-label">Email</label>
+                <input type="email" name="email" class="form-input" placeholder="admin@restaurante.com" required>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">Senha</label>
+                <input type="password" name="password" class="form-input" placeholder="••••••" required>
+            </div>
+
+            <button type="submit" class="btn-submit">Entrar no Painel</button>
+            
+            <p id="error-msg" style="color: red; text-align: center; margin-top: 15px; font-size: 0.9rem; display: none;"></p>
+        </form>
+        
+        <div style="text-align: center; margin-top: 20px; font-size: 0.85rem; color: #999;">
+            Esqueceu a senha? Contate o suporte.
+        </div>
+    </div>
+
+    <script>
+        const API = 'http://localhost:3000/api';
+
+        document.getElementById('login-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const email = e.target.email.value;
+            const password = e.target.password.value;
+            const errorMsg = document.getElementById('error-msg');
+            const btn = e.target.querySelector('button');
+
+            btn.disabled = true;
+            btn.innerText = "Verificando...";
+            errorMsg.style.display = 'none';
+
+            try {
+                const res = await fetch(`${API}/auth/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                const json = await res.json();
+
+                if (json.success) {
+                    // O SEGREDO ESTÁ AQUI: SALVAR O TOKEN
+                    localStorage.setItem('pedeai_token', json.token);
+                    
+                    // Salvar dados do usuário também ajuda
+                    localStorage.setItem('pedeai_user', JSON.stringify(json.restaurant));
+
+                    // Redireciona para o Admin
+                    window.location.href = 'admin-orders.html';
+                } else {
+                    errorMsg.innerText = json.message || 'Erro ao entrar';
+                    errorMsg.style.display = 'block';
+                }
+            } catch (err) {
+                errorMsg.innerText = 'Erro de conexão com o servidor';
+                errorMsg.style.display = 'block';
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "Entrar no Painel";
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PedeAi - Premium</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+ 
+</head>
+<body>
+
+    <header class="main-header">
+        <nav class="glass-nav">
+            <a href="index.html" class="logo">PedeAi<span style="color:var(--primary)">.</span></a>
+            
+<div style="display: flex; gap: 10px;">
+        <a href="meus-pedidos.html" class="btn" style="background: white; color: var(--text-main); border: 1px solid var(--border);">
+            🧾 Meus Pedidos
+        </a>
+        
+        <a href="login.html" class="btn btn-primary">Área Restrita</a>
+    </div>
+
+            <div class="custom-dropdown" id="city-dropdown">
+                <div class="dropdown-trigger" onclick="toggleDropdown()">
+                    <span style="color:var(--primary)">📍</span>
+                    <span id="current-city-label">Escolher Cidade</span>
+                    <span style="font-size:0.7rem; opacity:0.5; margin-left:4px;">▼</span>
+                </div>
+                
+                <div class="dropdown-menu" id="dropdown-list">
+                    <div class="dropdown-item selected" onclick="selectCity('all', 'Todas as Cidades')">
+                        🌍 Todas as Cidades
+                    </div>
+                    </div>
+            </div>
+
+            
+        </nav>
+    </header>
+
+    <div class="container">
+        <section class="hero-section">
+            <h1 class="hero-title">Sua fome,<br>resolvida com estilo.</h1>
+            
+            <div class="search-wrapper">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="search-input" class="search-input" placeholder="Buscar restaurantes ou pratos..." onkeyup="filterSearch()">
+            </div>
+        </section>
+
+        <div class="category-scroll">
+            <div class="chip active" onclick="filterCategory('all', this)">🍽️ Tudo</div>
+            <div class="chip" onclick="filterCategory('Hamburgueria', this)">🍔 Burguers</div>
+            <div class="chip" onclick="filterCategory('Pizzaria', this)">🍕 Pizzas</div>
+            <div class="chip" onclick="filterCategory('Japonesa', this)">🍣 Sushi</div>
+            <div class="chip" onclick="filterCategory('Brasileira', this)">🍛 Brasileira</div>
+            <div class="chip" onclick="filterCategory('Doces', this)">🍰 Doces</div>
+        </div>
+
+        <div style="margin-top:20px;">
+            <div class="section-header">
+                <h2 class="section-title">Restaurantes</h2>
+                <span id="store-count" style="color:#64748b;">Carregando...</span>
+            </div>
+            <div id="restaurants-grid" class="restaurant-grid"></div>
+        </div>
+    </div>
+
+    <script>
+        const API = 'https://epistemologically-phenomenal-river.ngrok-free.dev/api';
+        let allRestaurants = [];
+        let currentCity = 'all';
+        let currentCategory = 'all';
+
+        (async () => {
+            try {
+                const res = await fetch(`${API}/restaurants`)
+
+                const json = await res.json();
+                if(json.success) {
+                    allRestaurants = json.data;
+                    setupCustomDropdown(); // Preenche o dropdown novo
+                    
+                    // Recupera cidade salva
+                    const savedCity = localStorage.getItem('user_city');
+                    const savedLabel = localStorage.getItem('user_city_label');
+                    if(savedCity) selectCity(savedCity, savedLabel || savedCity, false);
+                    
+                    applyFilters();
+                }
+            } catch(e) { console.error(e); }
+        })();
+
+        // --- LÓGICA DO DROPDOWN CUSTOMIZADO ---
+        function toggleDropdown() {
+            document.getElementById('dropdown-list').classList.toggle('show');
+            document.querySelector('.dropdown-trigger').classList.toggle('active');
+        }
+
+        // Fecha se clicar fora
+        window.onclick = function(event) {
+            if (!event.target.closest('.custom-dropdown')) {
+                document.getElementById('dropdown-list').classList.remove('show');
+                document.querySelector('.dropdown-trigger').classList.remove('active');
+            }
+        }
+
+        function setupCustomDropdown() {
+            const cities = new Set();
+            allRestaurants.forEach(r => {
+                if(r.addressCity) cities.add(r.addressCity);
+            });
+
+            const list = document.getElementById('dropdown-list');
+            // Mantém a opção "Todas" e limpa o resto (se houver lixo)
+            list.innerHTML = `
+                <div class="dropdown-item" onclick="selectCity('all', 'Todas as Cidades')">
+                    🌍 Todas as Cidades
+                </div>
+            `;
+
+            cities.forEach(c => {
+                const item = document.createElement('div');
+                item.className = 'dropdown-item';
+                item.onclick = () => selectCity(c, c);
+                item.innerHTML = `📍 ${c}`;
+                list.appendChild(item);
+            });
+        }
+
+        function selectCity(value, label, refresh = true) {
+            currentCity = value;
+            localStorage.setItem('user_city', value);
+            localStorage.setItem('user_city_label', label);
+            
+            // Atualiza visual
+            document.getElementById('current-city-label').innerText = label;
+            document.getElementById('dropdown-list').classList.remove('show');
+            
+            if(refresh) applyFilters();
+        }
+        // ----------------------------------------
+
+        function filterCategory(cat, el) {
+            currentCategory = cat;
+            document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+            el.classList.add('active');
+            applyFilters();
+        }
+
+        function filterSearch() { applyFilters(); }
+
+        function applyFilters() {
+            const term = document.getElementById('search-input').value.toLowerCase();
+            const filtered = allRestaurants.filter(r => {
+                const matchCity = (currentCity === 'all') || (r.addressCity === currentCity);
+                const matchCat = (currentCategory === 'all') || (r.category === currentCategory);
+                const matchSearch = r.name.toLowerCase().includes(term) || r.category.toLowerCase().includes(term);
+                return matchCity && matchCat && matchSearch;
+            });
+            renderRestaurants(filtered);
+        }
+
+        function renderRestaurants(list) {
+            const grid = document.getElementById('restaurants-grid');
+            document.getElementById('store-count').innerText = `${list.length} locais`;
+            grid.innerHTML = '';
+
+            if(list.length === 0) {
+                grid.innerHTML = `<div style="grid-column:1/-1; text-align:center; padding:50px;">
+                    <h3>Nada encontrado 😕</h3>
+                </div>`;
+                return;
+            }
+
+            list.forEach(r => {
+                const isOpen = checkIsOpen(r.opensAt, r.closesAt);
+                const badgeClass = isOpen ? 'badge-open' : 'badge-closed';
+                const badgeText = isOpen ? 'ABERTO' : 'FECHADO';
+                const cardStyle = isOpen ? '' : 'filter: grayscale(1); opacity: 0.8;';
+                
+                const deliveryHtml = r.deliveryFee > 0 
+                    ? `R$ ${r.deliveryFee.toFixed(2)}` 
+                    : `<span style="color:var(--primary); font-weight:700;">Grátis</span>`;
+
+                grid.innerHTML += `
+                    <a href="loja.html?slug=${r.slug}" class="card" style="${cardStyle}">
+                        <div class="card-img-wrap">
+                            <span class="card-badge ${badgeClass}">${badgeText}</span>
+                            <img src="${r.image || 'img/default-food.png'}" alt="${r.name}" loading="lazy">
+                        </div>
+                        <div class="card-body">
+                            <div class="card-title">${r.name}</div>
+                            <div class="card-sub">
+                                ${r.category} • ★ ${r.rating || 4.5}
+                            </div>
+                            <div class="card-footer">
+                                <span style="display:flex; align-items:center; gap:5px; color:#64748b;">
+                                    🕒 ${r.deliveryTime || '30 min'}
+                                </span>
+                                <span style="font-weight:600; color:#0f172a;">${deliveryHtml}</span>
+                            </div>
+                        </div>
+                    </a>
+                `;
+            });
+        }
+
+        function checkIsOpen(open, close) {
+            if(!open || !close) return true;
+            const now = new Date();
+            const cur = now.getHours() * 60 + now.getMinutes();
+            const [oh, om] = open.split(':').map(Number);
+            const [ch, cm] = close.split(':').map(Number);
+            const s = oh*60+om; let e = ch*60+cm;
+            if(e < s) e += 1440;
+            let m = cur; if(e > 1440 && m < s) m += 1440;
+            return m >= s && m < e;
+        }
+    </script>
+</body>
+</html>
