@@ -744,63 +744,78 @@ async function showCardModal(amount, email, orderId, entityTypeInput) {
                 onReady: () => {
                     console.log('✅ Formulário pronto para uso');
                 },
-                onSubmit: (formData) => {
-                    // 🚀 A MÁGICA PARA DESTRAVAR ACONTECE AQUI
-                    return new Promise((resolve, reject) => {
-                        console.log("📤 Enviando dados para o Backend...");
+ onSubmit: (formData) => {
+    return new Promise((resolve, reject) => {
+        try {
+            // 🔍 LOG DE DIAGNÓSTICO
+            console.log("🚀 Passo 1: onSubmit disparado");
+            console.log("🚀 Passo 2: Token recebido:", formData.token);
+            console.log("🚀 Passo 3: Verificando orderId:", orderId);
 
-                        // Montamos o objeto exatamente como o seu backend espera
-                        const paymentData = {
-                            token: formData.token,
-                            issuer_id: formData.issuer_id,
-                            payment_method_id: formData.payment_method_id,
-                            transaction_amount: formData.transaction_amount,
-                            installments: formData.installments,
-                            payer: {
-                                email: formData.payer.email,
-                                identification: formData.payer.identification,
-                                entity_type: entityTypeInput || 'individual'
-                            },
-                            orderId: orderId // O ID que recebemos ao criar o pedido
-                        };
+            // Se o orderId estiver vazio, o código trava aqui. Vamos evitar isso:
+            if (!orderId) {
+                alert("❌ ERRO NO FRONTEND: A variável 'orderId' está vazia. O pagamento não pode ser enviado.");
+                reject(); // Destrava o botão para o usuário tentar de novo
+                return;
+            }
 
-                        fetch(`${API}/payments/card`, {
-                            method: 'POST',
-                            headers: { 
-                                'Content-Type': 'application/json'
-                                // Se ainda usar ngrok no celular, adicione o header aqui:
-                                // 'ngrok-skip-browser-warning': 'true'
-                            },
-                            body: JSON.stringify(paymentData)
-                        })
-                        .then(async response => {
-                            const result = await response.json();
-                            
-                            if (result.success || result.status === 'approved') {
-                                console.log("🎉 Pagamento aprovado!");
-                                resolve(); // Isso faz o botão do MP brilhar e finalizar
-                                window.location.href = `rastreio.html?id=${orderId}`;
-                            } else {
-                                console.error("❌ Erro no processamento:", result);
-                                alert("Pagamento Recusado: " + (result.error || "Verifique os dados do cartão"));
-                                reject(); // Isso para o loading do botão
-                            }
-                        })
-                        .catch(error => {
-                            console.error("🔥 Erro de rede/servidor:", error);
-                            alert("Erro de conexão com o servidor.");
-                            reject(); // Isso para o loading do botão
-                        });
-                    });
-                },
+            // 📤 TENTANDO ENVIAR
+            console.log("🚀 Passo 4: Disparando Fetch para:", `${API}/payments/card`);
+
+            fetch(`${API}/payments/card`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    token: formData.token,
+                    issuer_id: formData.issuer_id,
+                    payment_method_id: formData.payment_method_id,
+                    transaction_amount: formData.transaction_amount,
+                    installments: formData.installments,
+                    payer: {
+                        email: formData.payer.email,
+                        identification: formData.payer.identification,
+                        entity_type: 'individual' // Forçado para evitar erro 400
+                    },
+                    orderId: orderId // Aqui é onde o seu código estava quebrando
+                })
+            })
+            .then(async res => {
+                console.log("🚀 Passo 5: Resposta do servidor recebida (Status):", res.status);
+                const json = await res.json();
+                
+                if (json.success || json.status === 'approved') {
+                    console.log("✅ Pagamento aprovado no Backend!");
+                    resolve(); // FINALIZA O LOADING DO BOTÃO
+                    window.location.href = `rastreio.html?id=${orderId}`;
+                } else {
+                    console.error("❌ Erro retornado pelo Backend:", json);
+                    alert("Pagamento Recusado: " + (json.error || "Verifique os dados"));
+                    reject(); // PARA O LOADING DO BOTÃO
+                }
+            })
+            .catch(err => {
+                console.error("🔥 ERRO DE REDE:", err);
+                alert("O servidor não respondeu. Verifique se o Backend no Render está rodando.");
+                reject();
+            });
+
+        } catch (error) {
+            console.error("💥 CRASH NO JAVASCRIPT:", error);
+            alert("Erro interno: " + error.message);
+            reject();
+        }
+    });
+},
                 onError: (error) => {
-                    console.error("Erro crítico no Brick:", error);
-                    alert("Erro ao inicializar o pagamento.");
-                },
-            },
+                    console.error("💳 Erro no Brick de Cartão:", error);
+                    alert("Erro no formulário de pagamento: " + error.message);
+                }
+            }
         };
+
         cardBrickController = await bricksBuilder.create('cardPayment', 'cardPaymentBrick_container', settings);
     };
+
     renderCardPaymentBrick(bricksBuilder);
 }
     </script>
