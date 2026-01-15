@@ -1,6 +1,6 @@
 // frontend/js/main.js
 
-const API_URL = 'http://localhost:3000/api/restaurants';
+const API_URL = 'https://pede-ai.onrender.com/api/restaurants';
 const container = document.getElementById('restaurants-container');
 
 // 1. Função para buscar dados da API Real
