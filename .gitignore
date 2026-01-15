@@ -1,0 +1,14 @@
+# Dependências (O servidor instala sozinho)
+node_modules/
+
+# Variáveis de Ambiente (Segurança)
+.env
+
+# Logs e arquivos temporários
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Se você tiver uma pasta de builds ou uploads locais
+frontend/uploads/
+backend/uploads/
