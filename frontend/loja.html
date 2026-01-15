@@ -353,6 +353,7 @@
         let selectedProduct = null;
         let qty = 1;
         let selectedFreight = 0;
+        let orderId = null;
         
         // Variáveis de Pagamento
         let currentPaymentId = null; 
@@ -623,7 +624,7 @@
                 const json = await res.json();
                 if(!json.success) throw new Error(json.message);
                 
-                const orderId = json.data._id;
+                orderId = json.data._id;
                 localStorage.removeItem(CART_STORAGE_KEY);
                 cart = []; updateCartUI(); toggleCart();
 
@@ -738,32 +739,49 @@ async function showCardModal(amount, email, orderId, entityTypeInput) {
                 onReady: () => console.log('✅ Brick pronto!'),
                 onSubmit: (formData) => {
     return new Promise((resolve, reject) => {
-        console.log("🚀 Enviando para o Backend...");
+        // --- TESTE DE SEGURANÇA ---
+        console.log("1. Entrou no onSubmit");
+        console.log("2. Dados do MP recebidos:", formData.token);
+        
+        // Verifique se o orderId existe
+        if (!orderId) {
+            alert("❌ Erro: O ID do pedido sumiu! Não posso enviar o pagamento.");
+            console.error("Variável orderId está indefinida.");
+            return reject();
+        }
 
-        fetch(`${API}/payments/card`, {
+        const urlFinal = `${API}/payments/card`;
+        console.log("3. Tentando enviar para:", urlFinal);
+        
+        // Alerta visual para teste no celular
+        // alert("Enviando para: " + urlFinal); 
+
+        fetch(urlFinal, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 ...formData,
-                orderId: orderId // Certifique-se que essa variável tem o ID do pedido
+                orderId: orderId
             })
         })
-        .then(res => res.json())
+        .then(res => {
+            console.log("4. Servidor respondeu com status:", res.status);
+            return res.json();
+        })
         .then(json => {
-            if (json.success || json.status === 'approved') {
-                console.log("✅ Pagamento aprovado!");
-                resolve(); // ISSO DESTRAVA O BOTÃO
+            console.log("5. Resposta completa do servidor:", json);
+            if (json.success) {
+                resolve();
                 window.location.href = `rastreio.html?id=${orderId}`;
             } else {
-                console.error("❌ Erro no pagamento:", json);
-                alert('Pagamento Recusado: ' + (json.message || 'Verifique os dados'));
-                reject(); // ISSO PARA O CARREGAMENTO E DEVOLVE O CONTROLE AO USUÁRIO
+                alert("Pagamento recusado: " + (json.error || "Erro desconhecido"));
+                reject();
             }
         })
         .catch(err => {
-            console.error("🔥 Erro de conexão:", err);
-            reject(); // ISSO PARA O CARREGAMENTO
-            alert('Erro de comunicação com o servidor.');
+            console.error("6. ERRO FATAL NO FETCH:", err);
+            alert("Erro de conexão: O servidor não foi alcançado.");
+            reject();
         });
     });
 }
