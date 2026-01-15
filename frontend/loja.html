@@ -704,90 +704,101 @@
     // 🚑 BRICK "MODO AUTOMÁTICO" (SEM PERSONALIZAÇÃO)
     // =================================================================
 async function showCardModal(amount, email, orderId, entityTypeInput) {
-    document.getElementById('card-modal').style.display = 'flex';
+    console.log("💳 Abrindo Modal de Cartão. Pedido:", orderId);
+    
+    const modal = document.getElementById('card-modal');
+    modal.style.display = 'flex';
+    
+    // Limpeza para evitar duplicação
     if (cardBrickController) {
-        await cardBrickController.unmount();
+        try { await cardBrickController.unmount(); } catch(e) {}
         cardBrickController = null;
     }
     document.getElementById('cardPaymentBrick_container').innerHTML = ''; 
 
-    // Forçando a instância para garantir o Locale
-    const mpInstance = new MercadoPago(MP_PUBLIC_KEY, { locale: 'pt-BR' });
-    const bricksBuilder = mpInstance.bricks();
+    const mp = new MercadoPago(MP_PUBLIC_KEY, { locale: 'pt-BR' });
+    const bricksBuilder = mp.bricks();
 
     const renderCardPaymentBrick = async (bricksBuilder) => {
         const settings = {
             initialization: {
-                amount: Number(amount) < 1 ? 5 : Number(amount),
-                payer: { email: email || 'cliente@pedeai.com' },
+                amount: Number(amount),
+                payer: {
+                    email: email || 'cliente@pedeai.com',
+                },
             },
             customization: {
                 visual: {
                     style: { theme: 'default' },
-                    // Escondendo o que não é essencial para evitar erros de renderização
-                    hidePaymentButton: false,
-                    hideFormTitle: true 
+                    hideFormTitle: true,
                 },
                 paymentMethods: {
-                    // Forçamos explicitamente apenas os tipos de cartão
+                    minInstallments: 1,
+                    maxInstallments: 12,
                     types: {
                         included: ['credit_card', 'debit_card']
                     }
                 }
             },
             callbacks: {
-                onReady: () => console.log('✅ Brick pronto!'),
-              onSubmit: (formData) => {
-    return new Promise((resolve, reject) => {
-        try {
-            console.log("🚀 Iniciando envio do Token:", formData.token);
+                onReady: () => {
+                    console.log('✅ Formulário pronto para uso');
+                },
+                onSubmit: (formData) => {
+                    // 🚀 A MÁGICA PARA DESTRAVAR ACONTECE AQUI
+                    return new Promise((resolve, reject) => {
+                        console.log("📤 Enviando dados para o Backend...");
 
-            // TESTE CRUCIAL: Se o orderId estiver vazio, avisa na hora
-            if (!orderId) {
-                alert("❌ ERRO: O ID do pedido não foi encontrado. Tente recarregar a página.");
-                return reject();
-            }
+                        // Montamos o objeto exatamente como o seu backend espera
+                        const paymentData = {
+                            token: formData.token,
+                            issuer_id: formData.issuer_id,
+                            payment_method_id: formData.payment_method_id,
+                            transaction_amount: formData.transaction_amount,
+                            installments: formData.installments,
+                            payer: {
+                                email: formData.payer.email,
+                                identification: formData.payer.identification,
+                                entity_type: entityTypeInput || 'individual'
+                            },
+                            orderId: orderId // O ID que recebemos ao criar o pedido
+                        };
 
-            // Envia para o seu servidor do Render
-            fetch(`${API}/payments/card`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    token: formData.token,
-                    issuer_id: formData.issuer_id,
-                    payment_method_id: formData.payment_method_id,
-                    transaction_amount: formData.transaction_amount,
-                    installments: formData.installments,
-                    payer: formData.payer,
-                    orderId: orderId // Aqui é onde costuma dar erro
-                })
-            })
-            .then(async res => {
-                const data = await res.json();
-                if (data.success) {
-                    resolve();
-                    alert("✅ Pagamento Aprovado!");
-                    window.location.href = `rastreio.html?id=${orderId}`;
-                } else {
-                    alert("❌ Pagamento Recusado: " + (data.error || "Verifique os dados"));
-                    reject();
-                }
-            })
-            .catch(err => {
-                console.error("Erro no fetch do backend:", err);
-                alert("❌ Erro de Conexão com o Servidor Render.");
-                reject();
-            });
-
-        } catch (error) {
-            alert("❌ Erro interno no código: " + error.message);
-            reject();
-        }
-    });
-}
-            }
+                        fetch(`${API}/payments/card`, {
+                            method: 'POST',
+                            headers: { 
+                                'Content-Type': 'application/json'
+                                // Se ainda usar ngrok no celular, adicione o header aqui:
+                                // 'ngrok-skip-browser-warning': 'true'
+                            },
+                            body: JSON.stringify(paymentData)
+                        })
+                        .then(async response => {
+                            const result = await response.json();
+                            
+                            if (result.success || result.status === 'approved') {
+                                console.log("🎉 Pagamento aprovado!");
+                                resolve(); // Isso faz o botão do MP brilhar e finalizar
+                                window.location.href = `rastreio.html?id=${orderId}`;
+                            } else {
+                                console.error("❌ Erro no processamento:", result);
+                                alert("Pagamento Recusado: " + (result.error || "Verifique os dados do cartão"));
+                                reject(); // Isso para o loading do botão
+                            }
+                        })
+                        .catch(error => {
+                            console.error("🔥 Erro de rede/servidor:", error);
+                            alert("Erro de conexão com o servidor.");
+                            reject(); // Isso para o loading do botão
+                        });
+                    });
+                },
+                onError: (error) => {
+                    console.error("Erro crítico no Brick:", error);
+                    alert("Erro ao inicializar o pagamento.");
+                },
+            },
         };
-        // MUDANÇA: Usando 'cardPayment' em vez de apenas 'payment'
         cardBrickController = await bricksBuilder.create('cardPayment', 'cardPaymentBrick_container', settings);
     };
     renderCardPaymentBrick(bricksBuilder);
