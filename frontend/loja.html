@@ -737,52 +737,52 @@ async function showCardModal(amount, email, orderId, entityTypeInput) {
             },
             callbacks: {
                 onReady: () => console.log('✅ Brick pronto!'),
-                onSubmit: (formData) => {
+              onSubmit: (formData) => {
     return new Promise((resolve, reject) => {
-        // --- TESTE DE SEGURANÇA ---
-        console.log("1. Entrou no onSubmit");
-        console.log("2. Dados do MP recebidos:", formData.token);
-        
-        // Verifique se o orderId existe
-        if (!orderId) {
-            alert("❌ Erro: O ID do pedido sumiu! Não posso enviar o pagamento.");
-            console.error("Variável orderId está indefinida.");
-            return reject();
-        }
+        try {
+            console.log("🚀 Iniciando envio do Token:", formData.token);
 
-        const urlFinal = `${API}/payments/card`;
-        console.log("3. Tentando enviar para:", urlFinal);
-        
-        // Alerta visual para teste no celular
-        // alert("Enviando para: " + urlFinal); 
-
-        fetch(urlFinal, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                ...formData,
-                orderId: orderId
-            })
-        })
-        .then(res => {
-            console.log("4. Servidor respondeu com status:", res.status);
-            return res.json();
-        })
-        .then(json => {
-            console.log("5. Resposta completa do servidor:", json);
-            if (json.success) {
-                resolve();
-                window.location.href = `rastreio.html?id=${orderId}`;
-            } else {
-                alert("Pagamento recusado: " + (json.error || "Erro desconhecido"));
-                reject();
+            // TESTE CRUCIAL: Se o orderId estiver vazio, avisa na hora
+            if (!orderId) {
+                alert("❌ ERRO: O ID do pedido não foi encontrado. Tente recarregar a página.");
+                return reject();
             }
-        })
-        .catch(err => {
-            console.error("6. ERRO FATAL NO FETCH:", err);
-            alert("Erro de conexão: O servidor não foi alcançado.");
+
+            // Envia para o seu servidor do Render
+            fetch(`${API}/payments/card`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    token: formData.token,
+                    issuer_id: formData.issuer_id,
+                    payment_method_id: formData.payment_method_id,
+                    transaction_amount: formData.transaction_amount,
+                    installments: formData.installments,
+                    payer: formData.payer,
+                    orderId: orderId // Aqui é onde costuma dar erro
+                })
+            })
+            .then(async res => {
+                const data = await res.json();
+                if (data.success) {
+                    resolve();
+                    alert("✅ Pagamento Aprovado!");
+                    window.location.href = `rastreio.html?id=${orderId}`;
+                } else {
+                    alert("❌ Pagamento Recusado: " + (data.error || "Verifique os dados"));
+                    reject();
+                }
+            })
+            .catch(err => {
+                console.error("Erro no fetch do backend:", err);
+                alert("❌ Erro de Conexão com o Servidor Render.");
+                reject();
+            });
+
+        } catch (error) {
+            alert("❌ Erro interno no código: " + error.message);
             reject();
-        });
+        }
     });
 }
             }
