@@ -23,7 +23,10 @@ const app = express();
 
 // Middlewares
 app.use(express.json());
-app.use(cors()); // Permite que o Frontend converse com o Backend
+app.use(cors({
+    origin: '*', // Em teste pode deixar *, mas o ideal é o link da Vercel
+    methods: ['GET', 'POST']
+}));// Permite que o Frontend converse com o Backend
 
 
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
