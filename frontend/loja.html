@@ -703,13 +703,18 @@
 // =================================================================
     // 🚑 BRICK "MODO AUTOMÁTICO" (SEM PERSONALIZAÇÃO)
     // =================================================================
-async function showCardModal(amount, email, orderId, entityTypeInput) {
-    console.log("💳 Abrindo Modal de Cartão. Pedido:", orderId);
+async function showCardModal(amount, email, orderId) {
+    console.log("💳 [DEBUG] Abrindo Modal. Pedido ID:", orderId);
     
+    // Verificação de Segurança antes de abrir
+    if (!orderId) {
+        alert("Erro: Pedido não identificado. Tente atualizar a página.");
+        return;
+    }
+
     const modal = document.getElementById('card-modal');
     modal.style.display = 'flex';
     
-    // Limpeza para evitar duplicação
     if (cardBrickController) {
         try { await cardBrickController.unmount(); } catch(e) {}
         cardBrickController = null;
@@ -723,99 +728,64 @@ async function showCardModal(amount, email, orderId, entityTypeInput) {
         const settings = {
             initialization: {
                 amount: Number(amount),
-                payer: {
-                    email: email || 'cliente@pedeai.com',
-                },
+                payer: { email: email || 'cliente@pedeai.com' }
             },
             customization: {
-                visual: {
-                    style: { theme: 'default' },
-                    hideFormTitle: true,
-                },
+                visual: { style: { theme: 'default' }, hideFormTitle: true },
                 paymentMethods: {
                     minInstallments: 1,
-                    maxInstallments: 12,
-                    types: {
-                        included: ['credit_card', 'debit_card']
-                    }
+                    types: { included: ['credit_card', 'debit_card'] }
                 }
             },
             callbacks: {
-                onReady: () => {
-                    console.log('✅ Formulário pronto para uso');
+                onReady: () => console.log('✅ [DEBUG] Brick Renderizado'),
+                onSubmit: (formData) => {
+                    return new Promise((resolve, reject) => {
+                        console.log("🚀 [DEBUG] Passo 1: Iniciando Envio...");
+                        
+                        // ENVIO PARA O BACKEND
+                        fetch(`${API}/payments/card`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                ...formData,
+                                orderId: orderId, // OBRIGATÓRIO
+                                payer: {
+                                    email: formData.payer.email,
+                                    identification: formData.payer.identification,
+                                    entity_type: 'individual'
+                                }
+                            })
+                        })
+                        .then(res => {
+                            console.log("🚀 [DEBUG] Passo 2: Status do Servidor:", res.status);
+                            return res.json();
+                        })
+                        .then(json => {
+                            console.log("🚀 [DEBUG] Passo 3: Resposta JSON:", json);
+                            if (json.success || json.status === 'approved') {
+                                resolve();
+                                window.location.href = `rastreio.html?id=${orderId}`;
+                            } else {
+                                alert("Pagamento negado: " + (json.error || "Verifique os dados"));
+                                reject();
+                            }
+                        })
+                        .catch(err => {
+                            console.error("🔥 [DEBUG] Erro Fatal:", err);
+                            alert("Erro de conexão. Verifique o console.");
+                            reject();
+                        });
+                    });
                 },
- onSubmit: (formData) => {
-    return new Promise((resolve, reject) => {
-        try {
-            // 🔍 LOG DE DIAGNÓSTICO
-            console.log("🚀 Passo 1: onSubmit disparado");
-            console.log("🚀 Passo 2: Token recebido:", formData.token);
-            console.log("🚀 Passo 3: Verificando orderId:", orderId);
-
-            // Se o orderId estiver vazio, o código trava aqui. Vamos evitar isso:
-            if (!orderId) {
-                alert("❌ ERRO NO FRONTEND: A variável 'orderId' está vazia. O pagamento não pode ser enviado.");
-                reject(); // Destrava o botão para o usuário tentar de novo
-                return;
-            }
-
-            // 📤 TENTANDO ENVIAR
-            console.log("🚀 Passo 4: Disparando Fetch para:", `${API}/payments/card`);
-
-            fetch(`${API}/payments/card`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    token: formData.token,
-                    issuer_id: formData.issuer_id,
-                    payment_method_id: formData.payment_method_id,
-                    transaction_amount: formData.transaction_amount,
-                    installments: formData.installments,
-                    payer: {
-                        email: formData.payer.email,
-                        identification: formData.payer.identification,
-                        entity_type: 'individual' // Forçado para evitar erro 400
-                    },
-                    orderId: orderId // Aqui é onde o seu código estava quebrando
-                })
-            })
-            .then(async res => {
-                console.log("🚀 Passo 5: Resposta do servidor recebida (Status):", res.status);
-                const json = await res.json();
-                
-                if (json.success || json.status === 'approved') {
-                    console.log("✅ Pagamento aprovado no Backend!");
-                    resolve(); // FINALIZA O LOADING DO BOTÃO
-                    window.location.href = `rastreio.html?id=${orderId}`;
-                } else {
-                    console.error("❌ Erro retornado pelo Backend:", json);
-                    alert("Pagamento Recusado: " + (json.error || "Verifique os dados"));
-                    reject(); // PARA O LOADING DO BOTÃO
-                }
-            })
-            .catch(err => {
-                console.error("🔥 ERRO DE REDE:", err);
-                alert("O servidor não respondeu. Verifique se o Backend no Render está rodando.");
-                reject();
-            });
-
-        } catch (error) {
-            console.error("💥 CRASH NO JAVASCRIPT:", error);
-            alert("Erro interno: " + error.message);
-            reject();
-        }
-    });
-},
                 onError: (error) => {
-                    console.error("💳 Erro no Brick de Cartão:", error);
-                    alert("Erro no formulário de pagamento: " + error.message);
+                    console.error("❌ [DEBUG] Erro no Brick:", error);
+                    alert("Erro interno no Mercado Pago.");
                 }
             }
         };
-
         cardBrickController = await bricksBuilder.create('cardPayment', 'cardPaymentBrick_container', settings);
     };
-
     renderCardPaymentBrick(bricksBuilder);
 }
     </script>
