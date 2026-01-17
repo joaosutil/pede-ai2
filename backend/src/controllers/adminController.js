@@ -1,48 +1,57 @@
 const Restaurant = require('../models/Restaurant');
 const User = require('../models/User');
 
-// Criar novo Restaurante e seu respectivo Usuário de Acesso (Partner)
 exports.setupNewRestaurant = async (req, res) => {
   try {
+    console.log("Recebendo dados:", req.body); // Log para ajudar no debug
+
     const { ownerName, email, password, restaurantName, category } = req.body;
 
-    // 1. Criar o Usuário Dono (Partner)
-    let user = await User.findOne({ email });
-    if (user) return res.status(400).json({ message: 'E-mail de acesso já está em uso.' });
+    // 1. Validação
+    if (!ownerName || !email || !password || !restaurantName) {
+      return res.status(400).json({ message: "Todos os campos são obrigatórios." });
+    }
 
-    user = new User({
+    // 2. Verificar se usuário já existe
+    const userExists = await User.findOne({ email });
+    if (userExists) {
+      return res.status(400).json({ message: "E-mail já está em uso." });
+    }
+
+    // 3. Criar Usuário Parceiro
+    const newUser = new User({
       name: ownerName,
       email,
-      password,
-      role: 'partner' // Cargo específico para donos de loja
+      password, // Nota: Em produção, use bcrypt para hash da senha
+      role: 'partner'
     });
-    await user.save();
+    
+    const savedUser = await newUser.save();
+    console.log("Usuário criado:", savedUser._id);
 
-    // 2. Criar o Restaurante vinculado a esse usuário
-    const restaurant = new Restaurant({
+    // 4. Criar Restaurante Vinculado
+    const newRestaurant = new Restaurant({
       name: restaurantName,
-      category,
-      owner: user._id, // Vinculação real no banco
-      img: '🍱', // Default emoji
-      openingTime: '18:00',
-      closingTime: '23:00',
-      fee: 0
+      category: category || 'Geral',
+      owner: savedUser._id, // Vínculo com o ID do usuário criado
+      img: '🏪'
     });
-    await restaurant.save();
 
-    res.status(201).json({ message: 'Restaurante e acesso criados com sucesso!', restaurant, user });
-  } catch (err) {
-    res.status(500).json({ message: 'Erro ao configurar restaurante.', error: err.message });
+    await newRestaurant.save();
+    console.log("Restaurante criado com sucesso.");
+
+    res.status(201).json({ message: "Sucesso!", restaurant: newRestaurant });
+
+  } catch (error) {
+    console.error("Erro no Setup:", error); // Veja este erro no terminal do backend
+    res.status(500).json({ message: "Erro interno no servidor.", error: error.message });
   }
 };
 
-// LIMPEZA TOTAL (Use com cuidado!)
 exports.resetPlatform = async (req, res) => {
     try {
-        await Restaurant.deleteMany({ name: { $ne: "Administrador PedeAi" } });
-        // Opcional: deletar produtos também
-        res.status(200).json({ message: 'Banco de dados limpo com sucesso.' });
-    } catch (err) {
-        res.status(500).json({ message: 'Erro ao limpar banco.' });
-    }
+        await Restaurant.deleteMany({});
+        await User.deleteMany({ role: { $ne: 'admin' } });
+        res.json({ message: "Plataforma resetada." });
+    } catch (e) { res.status(500).json({ error: e.message }); }
 };

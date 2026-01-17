@@ -1,29 +1,50 @@
 const Product = require('../models/Product');
 
-// Busca produtos por ID do restaurante
-exports.getProductsByRestaurant = async (req, res) => {
+// Criar ou Atualizar Produto
+exports.saveProduct = async (req, res) => {
   try {
-    const { restaurantId } = req.params;
+    const { id, name, price, description, restaurant } = req.body;
     
-    // Busca produtos onde o campo 'restaurant' é igual ao ID passado
-    const products = await Product.find({ restaurant: restaurantId });
-    
-    // Garante retorno de array
-    res.status(200).json(products || []);
+    const productData = {
+      name,
+      price: Number(price),
+      description,
+      restaurant
+    };
+
+    // Se houver upload de nova imagem
+    if (req.file) {
+      productData.img = req.file.filename;
+    }
+
+    if (id && id !== "undefined") {
+      // ATUALIZAR
+      const updated = await Product.findByIdAndUpdate(id, productData, { new: true });
+      return res.status(200).json(updated);
+    } else {
+      // CRIAR NOVO
+      const product = new Product(productData);
+      await product.save();
+      return res.status(201).json(product);
+    }
   } catch (error) {
-    console.error("Erro ao buscar produtos:", error);
-    // Retorna array vazio em caso de erro de cast (ID inválido) ou conexão
-    res.status(200).json([]); 
+    console.error("Erro ao salvar produto:", error);
+    res.status(500).json({ message: "Erro interno ao processar produto." });
   }
 };
 
-// Cria um produto
-exports.createProduct = async (req, res) => {
+exports.getProductsByRestaurant = async (req, res) => {
   try {
-    const product = new Product(req.body);
-    await product.save();
-    res.status(201).json(product);
+    const products = await Product.find({ restaurant: req.params.restaurantId });
+    res.json(products);
   } catch (error) {
-    res.status(400).json({ message: "Erro ao criar produto", error: error.message });
+    res.status(500).json({ message: "Erro ao carregar cardápio." });
   }
+};
+
+exports.deleteProduct = async (req, res) => {
+    try {
+      await Product.findByIdAndDelete(req.params.id);
+      res.json({ message: "Produto removido." });
+    } catch (e) { res.status(500).json({ error: e.message }); }
 };

@@ -15,7 +15,7 @@ app.use(express.json());
 
 // 3. Arquivos Estáticos (Imagens)
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
-
+app.use('/uploads', express.static('uploads'));
 // 4. Definição das Rotas
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/restaurants', require('./routes/restaurants'));
