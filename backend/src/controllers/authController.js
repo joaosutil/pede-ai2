@@ -1,68 +1,58 @@
-// backend/src/controllers/authController.js
-const Restaurant = require('../models/Restaurant');
+const User = require('../models/User'); // Agora o arquivo existe!
 const jwt = require('jsonwebtoken');
 
-// Criar o Token (O Crachá)
-const generateToken = (id) => {
-    return jwt.sign({ id }, process.env.JWT_SECRET || 'segredo_super_secreto', {
-        expiresIn: '30d' // Token vale por 30 dias
-    });
-};
-
-// @desc    Autenticar restaurante e receber token
-// @route   POST /api/auth/login
-exports.loginRestaurant = async (req, res) => {
-    try {
-        const { email, password } = req.body;
-
-        // 1. Validação básica
-        if (!email || !password) {
-            return res.status(400).json({ success: false, message: 'Informe email e senha' });
-        }
-
-        // 2. Busca o restaurante pelo email (e pede pra trazer a senha que estava escondida)
-        const restaurant = await Restaurant.findOne({ email }).select('+password');
-
-        if (!restaurant) {
-            return res.status(401).json({ success: false, message: 'Credenciais inválidas' });
-        }
-
-        // 3. Verifica se a senha bate
-        const isMatch = await restaurant.matchPassword(password);
-
-        if (!isMatch) {
-            return res.status(401).json({ success: false, message: 'Credenciais inválidas' });
-        }
-
-        // 4. Tudo certo? Manda o Token!
-        res.status(200).json({
-            success: true,
-            token: generateToken(restaurant._id),
-            restaurant: {
-                _id: restaurant._id,
-                name: restaurant.name,
-                email: restaurant.email,
-                slug: restaurant.slug
-            }
-        });
-
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
-    }
-
+// Função de Registro
+exports.register = async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
     
+    // Verifica se já existe
+    let user = await User.findOne({ email });
+    if (user) {
+      return res.status(400).json({ message: 'Este e-mail já está cadastrado.' });
+    }
+
+    // Cria o novo usuário
+    // DICA: Em um sistema real, aqui usaríamos bcrypt para criptografar a senha
+    user = new User({ name, email, password });
+    
+    // Se o e-mail for o seu e-mail de admin, você pode forçar o cargo aqui ou mudar no banco depois
+    if (email === 'admin@pedeai.com') {
+        user.role = 'admin';
+    }
+
+    await user.save();
+
+    // Gera o Token de acesso
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1d' });
+
+    res.status(201).json({ 
+      token, 
+      user: { id: user._id, name: user.name, email: user.email, role: user.role } 
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: 'Erro ao registrar usuário no banco de dados.' });
+  }
 };
 
-exports.getMe = async (req, res) => {
-    try {
-        // req.user já vem preenchido pelo middleware 'protect'
-        const user = await Restaurant.findById(req.user.id);
-
-        res.status(200).json({
-            success: true,
-            data: user
-        });
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
+// Função de Login
+exports.login = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const user = await User.findOne({ email });
+    
+    if (!user || user.password !== password) {
+      return res.status(400).json({ message: 'E-mail ou senha incorretos.' });
     }
+
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '1d' });
+
+    res.status(200).json({ 
+      token, 
+      user: { id: user._id, name: user.name, email: user.email, role: user.role } 
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Erro interno no servidor.' });
+  }
 };
